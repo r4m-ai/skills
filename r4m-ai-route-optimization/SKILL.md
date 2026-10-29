@@ -38,7 +38,8 @@ Two hard requirements on the request:
   without them is geocoded as part of the request (geocode price, reported
   as `geocodingPriceMicros`) and must resolve to exactly one precise place,
   else the whole request is refused with `422 GEOCODING_UNRESOLVED` listing
-  the candidates. Pass `geocoding: { region: "Brooklyn, NY" }` (or
+  the candidates and, in `details.resolved`, the coordinates already found:
+  resend those as `lat`/`lng` and fix only the rest. Pass `geocoding: { region: "Brooklyn, NY" }` (or
   `bounds`) to rule out homonyms. Geocode first (step 1 below) when you want
   to review the matches before anything is routed.
 - **At least 3 addresses** per optimization.
