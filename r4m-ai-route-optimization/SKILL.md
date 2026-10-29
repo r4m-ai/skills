@@ -48,6 +48,31 @@ To pick the start/end point, set `isDepot: true` on one address (position in the
 array does not matter), and `roundTrip: true` in the parameters if the driver
 must return to the depot.
 
+## When the optimizer refuses with `GEOCODING_UNRESOLVED` (422)
+
+Every geocoded stop must land on exactly one precise place; the request is
+refused as a whole otherwise. The error body tells you everything needed to
+retry without paying twice:
+
+- `details.resolved[]` — stops that DID geocode: `index`, `address`, `lat`,
+  `lng` and the matched place. **These were paid for. Keep them**: on the
+  retry send each one with its `lat`/`lng`, so it is not geocoded again.
+- `details.unresolved[]` — stops that did not, each with `index`, `address`,
+  `reason` and `candidates[]` (`address`, `lat`, `lng`, `precision`).
+- `details.geocodingPriceMicros` — what the lookup cost.
+
+Retry only the unresolved stops, changing one of these per `reason`:
+
+| `reason` | What it means | What to change |
+|---|---|---|
+| `ambiguous` | several places fit (a bare "Springfield") | Add a city/state/country to that address string, or set `geocoding.region` for the whole request (e.g. `"Springfield, MO"`), or `geocoding.bounds` to the area the route runs in. If `candidates` already contains the right place, send its `lat`/`lng` directly — and confirm with the user when the choice is not obvious from context. |
+| `not_found` | the geocoder could not place the string, or every candidate fell outside `geocoding.bounds` | Fix typos, add the city or postal code, drop apartment/suite details; if a bounding box is set, check it covers the stop. Still nothing: ask the user for a corrected address. |
+| `imprecise` | one match, but coarser than `geocoding.minPrecision` (a street without a number, a town centre) | Add the house number or a landmark. Only if the user is fine with an approximate point, relax `minPrecision` (`street`, then `city`) — never silently. |
+
+Never guess a candidate, and never drop a stop to make the request go
+through: a route that skips or misplaces a delivery is worse than no route.
+Tell the user which stops were fixed how.
+
 ## Using MCP (when connected)
 
 If the session has an r4m MCP server (tools named `create_optimization`,
@@ -64,7 +89,10 @@ endpoint of the same name, takes the same fields and returns the same
    corrected address. Only `precision: "address"` is exact enough to drive
    to. Skip this step when coordinates are already known.
 2. `create_optimization` with `{ "addresses": [{ address, lat, lng, isDepot? }] }`
-   → `{ id, status: "pending", priceMicros }`.
+   → `{ id, status: "pending", priceMicros }`. Stops may omit `lat`/`lng`
+   and be geocoded inside the call (add `geocoding: { region }`); on
+   `GEOCODING_UNRESOLVED` follow the section above: resend `resolved` stops
+   with their coordinates, fix only the `unresolved` ones.
 3. `get_optimization` with `{ "id" }` every few seconds until `status` is
    `completed` or `failed`, then present `result.routes` as described under
    "Present the result" below.
