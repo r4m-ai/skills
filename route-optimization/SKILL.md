@@ -1,6 +1,12 @@
 ---
 name: route-optimization
-description: Optimize multi-stop delivery and field-service routes via the r4m.ai API. Use when the user has a list of addresses to visit and wants the fastest driving order, an optimized route, ETAs, or a delivery sequence. Triggers on: "optimize route", "best route", "order these stops/deliveries", "plan a route for these addresses", "route optimization", "shortest path between addresses", "R4M".
+description: >-
+  Optimize multi-stop delivery and field-service routes via the r4m.ai API.
+  Use when the user has a list of addresses to visit and wants the fastest
+  driving order, an optimized route, ETAs, or a delivery sequence. Triggers on:
+  "optimize route", "best route", "order these stops/deliveries", "plan a route
+  for these addresses", "route optimization", "shortest path between
+  addresses", "R4M".
 license: MIT
 ---
 
