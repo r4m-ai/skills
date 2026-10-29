@@ -17,14 +17,14 @@ npx skills add r4m-ai/skills
 This installs every skill in this repository. To add a single skill:
 
 ```bash
-npx skills add r4m-ai/skills --skill route-optimization
+npx skills add r4m-ai/skills --skill r4m-ai-route-optimization
 ```
 
 ## Skills
 
 | Skill | What it does |
 |---|---|
-| [`route-optimization`](./route-optimization/SKILL.md) | Turn a list of delivery/field-service addresses into the fastest driving order via the r4m.ai API. |
+| [`r4m-ai-route-optimization`](./r4m-ai-route-optimization/SKILL.md) | Turn a list of delivery/field-service addresses into the fastest driving order via the r4m.ai API. |
 
 ## Skills and the MCP server
 

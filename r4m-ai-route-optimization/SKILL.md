@@ -1,5 +1,5 @@
 ---
-name: route-optimization
+name: r4m-ai-route-optimization
 description: >-
   Optimize multi-stop delivery and field-service routes via the r4m.ai API.
   Use when the user has a list of addresses to visit and wants the fastest
