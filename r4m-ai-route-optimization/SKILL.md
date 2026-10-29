@@ -34,9 +34,13 @@ Base URL: `https://r4m.ai` (override with `R4M_BASE_URL` for self-hosted/preview
 
 Two hard requirements on the request:
 
-- **Each address needs coordinates** (`lat`, `lng`) — the optimizer does NOT
-  geocode plain strings. If you only have address text, geocode it first (see
-  step 1 below).
+- **Each address needs coordinates** (`lat`, `lng`), or neither: a stop sent
+  without them is geocoded as part of the request (geocode price, reported
+  as `geocodingPriceMicros`) and must resolve to exactly one precise place,
+  else the whole request is refused with `422 GEOCODING_UNRESOLVED` listing
+  the candidates. Pass `geocoding: { region: "Brooklyn, NY" }` (or
+  `bounds`) to rule out homonyms. Geocode first (step 1 below) when you want
+  to review the matches before anything is routed.
 - **At least 3 addresses** per optimization.
 
 To pick the start/end point, set `isDepot: true` on one address (position in the
