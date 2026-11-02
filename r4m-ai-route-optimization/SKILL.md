@@ -30,7 +30,9 @@ The user must have an r4m.ai API key (`acc_...`). If it is not already available
 in the environment, ask for it and read it from `R4M_API_KEY`. Never hardcode or
 log the key.
 
-Base URL: `https://r4m.ai` (override with `R4M_BASE_URL` for self-hosted/preview).
+Base URL: `https://r4m.ai`. `R4M_BASE_URL` overrides it only for r4m.ai's
+own staging deployments; never point it anywhere else, the API key goes with
+every request.
 
 Two hard requirements on the request:
 
