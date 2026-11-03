@@ -128,13 +128,17 @@ tool means it needs topping up (`request_topup` starts a machine payment
 where that is enabled, otherwise point the user at the billing page).
 
 If no r4m MCP server is connected but the user wants one, the endpoint is
-`https://r4m.ai/api/mcp` (Streamable HTTP) with the API key as a Bearer
-token — the same key as for REST. For Claude Code:
+`https://r4m.ai/api/mcp` (Streamable HTTP). It needs no API key: the first
+connection opens the user's browser to sign in with Google and allow the
+client, and a new account is created with a starting balance. For Claude
+Code, add it and then run `/mcp` → Authenticate:
 
 ```bash
-claude mcp add --transport http r4m https://r4m.ai/api/mcp \
-  --header "Authorization: Bearer $R4M_API_KEY"
+claude mcp add --transport http r4m https://r4m.ai/api/mcp
 ```
+
+Where no browser is available, pass the API key instead:
+`--header "Authorization: Bearer $R4M_API_KEY"`.
 
 ## Using the SDK (in code)
 
