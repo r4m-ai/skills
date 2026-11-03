@@ -41,6 +41,19 @@ The user must have an r4m.ai API key (`acc_...`). If it is not already available
 in the environment, ask for it and read it from `R4M_API_KEY`. Never hardcode or
 log the key.
 
+If the user has no key yet, tell them how to get one — it takes a minute:
+
+1. Sign in at https://r4m.ai/sign-in with a Google account (this creates the
+   account; a new account starts with a $1.00 balance).
+2. Open https://r4m.ai/api-keys, click **Create key** and copy it — it is
+   shown only once.
+3. Give it to the agent as `R4M_API_KEY` (for example
+   `export R4M_API_KEY=acc_...` before starting the agent).
+
+If you can drive a browser, you may open these pages for the user, but the
+Google sign-in is theirs: never type their credentials. An agent cannot sign
+up or create a key on its own yet.
+
 Base URL: `https://r4m.ai`. `R4M_BASE_URL` overrides it only for r4m.ai's
 own staging deployments; never point it anywhere else, the API key goes with
 every request.
@@ -259,7 +272,7 @@ text, and report the ordered list plus total distance/duration.
   with address count. Amounts in the API are integer micro-dollars (1 USD =
   1 000 000) in fields named `…Micros`. It is not a monthly allowance: nothing
   resets. A `402 INSUFFICIENT_FUNDS` means the balance cannot cover the
-  request — tell the user to top up.
+  request — tell the user to top up at https://r4m.ai/billing.
 - A `429` means "busy", and both kinds are handled the same way: wait for
   the seconds in the `Retry-After` header, then retry. `RATE_LIMITED` is the
   per-minute safety limit; `CONCURRENCY_LIMIT_EXCEEDED` means the plan's
