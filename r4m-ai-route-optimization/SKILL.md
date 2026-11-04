@@ -148,25 +148,14 @@ Install it with the project's package manager:
 npm install @r4mai/sdk   # or: pnpm add @r4mai/sdk
 ```
 
-Every endpoint is a typed function. Pass `baseUrl` and your raw `acc_…` key via
-`auth` on each call (the client adds the `Bearer ` prefix itself).
-
-The SDK's generated response type flattens the `{ success, data }` envelope, so
-read the payload via a small cast — `(res.data as Envelope<T>).data` — exactly as
-the result objects below do.
+Every endpoint is a typed method on the client and resolves to `{ data, error }`:
+TypeScript will not let you read `data` until you have ruled `error` out, and the
+promise never rejects.
 
 ```ts
-import { bulkGeocode, createOptimization, getOptimization } from "@r4mai/sdk";
+import { createClient } from "@r4mai/sdk";
 
-const opts = {
-  baseUrl: process.env.R4M_BASE_URL ?? "https://r4m.ai",
-  auth: process.env.R4M_API_KEY,
-};
-
-// Helper: the wire format is `{ success, data }`; the generated type isn't, so
-// unwrap with one cast. `T` is the payload shape you expect.
-const unwrap = <T>(res: { data?: unknown }) =>
-  (res.data as { data?: T } | undefined)?.data;
+const r4m = createClient({ apiKey: process.env.R4M_API_KEY! });
 
 const stops = [
   "350 5th Ave, New York, NY",
@@ -175,43 +164,26 @@ const stops = [
 ];
 
 // 1. Geocode the address strings into { lat, lng }.
-const geo = await bulkGeocode({ ...opts, body: { addresses: stops } });
-type GeocodeResult = { original: string; status: "ok" | "ambiguous" | "not_found"; lat?: number; lng?: number; precision?: string };
-const results = unwrap<{ results: GeocodeResult[] }>(geo)?.results ?? [];
+const geo = await r4m.bulkGeocode({ body: { addresses: stops } });
+if (geo.error) throw geo.error;
 // One result per distinct address, matched by `original` — never by position.
 // Anything but `ok` (ambiguous, not found) needs a better address string.
-const addresses = results
+const addresses = geo.data.results
   .filter((r) => r.status === "ok" && r.lat != null && r.lng != null)
   .map((r, i) => ({ address: r.original, lat: r.lat!, lng: r.lng!, isDepot: i === 0 }));
 
-// 2. Submit (returns immediately with status "pending").
-const created = await createOptimization({ ...opts, body: { addresses } });
-const job0 = unwrap<{ id: string; status: string; priceMicros: number }>(created);
-const id = job0!.id;
+// 2. Submit and wait: backs off 2s, 4s, then every 5s, typically 2–60s in all.
+// Use `submitOptimization` with a `webhookUrl` if a webhook should bring the plan.
+const { data: job, error } = await r4m.createOptimizationAndWaitForRoutes({
+  body: { addresses },
+});
+if (error) throw error; // refused, failed, timed out or still busy; see `error.message`
 
-// 3. Poll until terminal (typically 2–60s): after 2s, then 4s, then every 5s.
-let job = job0!;
-let delay = 2000;
-while (job.status === "pending" || job.status === "processing") {
-  await new Promise((r) => setTimeout(r, delay));
-  delay = Math.min(delay * 2, 5000);
-  const polled = await getOptimization({ ...opts, path: { id } });
-  job = unwrap<{ id: string; status: string; result?: unknown; errorMessage?: string }>(polled)!;
+// 3. Present the result. `routes` is always an array — one entry per vehicle.
+for (const route of job.result!.routes) {
+  console.log(route.waypoints.map((w) => w.index), route.totalDistanceMeters, route.totalTimeSeconds);
 }
-
-// 4. Present the result. `routes` is always an array — one entry per vehicle.
-if (job.status === "completed") {
-  const result = job.result as {
-    routes: Array<{ totalDistanceMeters: number; totalTimeSeconds: number; waypoints: Array<{ index: number }> }>;
-    unroutedStops: Array<{ index: number }>;
-  };
-  for (const route of result.routes) {
-    console.log(route.waypoints.map((w) => w.index), route.totalDistanceMeters, route.totalTimeSeconds);
-  }
-  console.log(result.unroutedStops); // stops that could not be fitted at all
-} else {
-  console.error(job.errorMessage);
-}
+console.log(job.result!.unroutedStops); // stops that could not be fitted at all
 ```
 
 SDK response fields are camelCase (e.g. `priceMicros`, `errorMessage`).
