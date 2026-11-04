@@ -119,9 +119,9 @@ endpoint of the same name, takes the same fields and returns the same
    and be geocoded inside the call (add `geocoding: { region }`); on
    `GEOCODING_UNRESOLVED` follow the section above: resend `resolved` stops
    with their coordinates, fix only the `unresolved` ones.
-3. `get_optimization` with `{ "id" }` every few seconds until `status` is
-   `completed` or `failed`, then present `result.routes` as described under
-   "Present the result" below.
+3. `get_optimization` with `{ "id" }` after 2 seconds, then 4, then every 5,
+   until `status` is `completed` or `failed` (typically 2–60s). Then present
+   `result.routes` as described under "Present the result" below.
 
 `check_usage` shows the prepaid balance; a `402 INSUFFICIENT_FUNDS` from any
 tool means it needs topping up (`request_topup` starts a machine payment
@@ -189,10 +189,12 @@ const created = await createOptimization({ ...opts, body: { addresses } });
 const job0 = unwrap<{ id: string; status: string; priceMicros: number }>(created);
 const id = job0!.id;
 
-// 3. Poll until terminal (typically 2–60s). Back off a few seconds between polls.
+// 3. Poll until terminal (typically 2–60s): after 2s, then 4s, then every 5s.
 let job = job0!;
+let delay = 2000;
 while (job.status === "pending" || job.status === "processing") {
-  await new Promise((r) => setTimeout(r, 3000));
+  await new Promise((r) => setTimeout(r, delay));
+  delay = Math.min(delay * 2, 5000);
   const polled = await getOptimization({ ...opts, path: { id } });
   job = unwrap<{ id: string; status: string; result?: unknown; errorMessage?: string }>(polled)!;
 }
@@ -252,7 +254,7 @@ For non-JS environments. Endpoints return the envelope
    Capture `data.id` (a UUID — no fixed prefix).
 
 3. **Poll** `GET /api/v1/optimizations/$ID` until `status` is `completed` or
-   `failed`. Back off a few seconds between polls; do not hammer the API.
+   `failed`: after 2 seconds, then 4, then every 5. Do not hammer the API.
 
    ```bash
    curl -sS "$R4M_BASE_URL/api/v1/optimizations/$ID" \
