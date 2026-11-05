@@ -41,18 +41,43 @@ The user must have an r4m.ai API key (`acc_...`). If it is not already available
 in the environment, ask for it and read it from `R4M_API_KEY`. Never hardcode or
 log the key.
 
-If the user has no key yet, tell them how to get one — it takes a minute:
+If the user has no key yet, get one with the device flow. It takes them a
+minute, and you never handle their password:
 
-1. Sign in at https://r4m.ai/sign-in with a Google account (this creates the
-   account; a new account starts with a $1.00 balance).
-2. Open https://r4m.ai/api-keys, click **Create key** and copy it — it is
-   shown only once.
-3. Give it to the agent as `R4M_API_KEY` (for example
-   `export R4M_API_KEY=acc_...` before starting the agent).
+1. Ask for a code:
 
-If you can drive a browser, you may open these pages for the user, but the
-Google sign-in is theirs: never type their credentials. An agent cannot sign
-up or create a key on its own yet.
+   ```bash
+   curl -X POST https://r4m.ai/api/auth/device/code \
+     -H 'Content-Type: application/json' \
+     -d '{"client_id":"r4m-agent"}'
+   ```
+
+   The answer has `device_code`, `user_code`, `verification_uri_complete`,
+   `interval` and `expires_in` (15 minutes).
+2. Show the user `verification_uri_complete` and `user_code`. They open the
+   link, sign in with Google (this creates the account; a new account starts
+   with a $1.00 balance), check that the code matches, and click **Allow**.
+   The approval is theirs: never click it for them, even if you can drive a
+   browser.
+3. Every `interval` seconds, redeem the code:
+
+   ```bash
+   curl -X POST https://r4m.ai/api/auth/device/key \
+     -H 'Content-Type: application/json' \
+     -d '{"client_id":"r4m-agent","device_code":"..."}'
+   ```
+
+   A `200` holds the key in `api_key`, once only: put it in `R4M_API_KEY` without
+   printing it. Otherwise `error` says what to do:
+   - `authorization_pending`: keep polling.
+   - `slow_down`: wait 5 seconds longer between polls.
+   - `key_limit_reached`: the plan's keys are all in use. Pass on
+     `error_description`; once the user revokes a key at
+     https://r4m.ai/api-keys, keep polling.
+   - `access_denied` or `expired_token`: stop. Start again only if the user asks.
+
+The user can also create a key themselves at https://r4m.ai/api-keys and give
+it to you as `R4M_API_KEY`.
 
 Base URL: `https://r4m.ai`. `R4M_BASE_URL` overrides it only for r4m.ai's
 own staging deployments; never point it anywhere else, the API key goes with
@@ -103,7 +128,7 @@ Tell the user which stops were fixed how.
 
 If the session has an r4m MCP server (tools named `create_optimization`,
 `get_optimization`, `bulk_geocode`, `forward_geocode`, `list_optimizations`,
-`check_usage`, `list_keys`, `create_key`, `request_topup`), call those
+`check_usage`, `list_keys`, `create_key`), call those
 directly instead of writing code — every tool is an exact twin of the REST
 endpoint of the same name, takes the same fields and returns the same
 `data` payload:
@@ -124,8 +149,9 @@ endpoint of the same name, takes the same fields and returns the same
    `result.routes` as described under "Present the result" below.
 
 `check_usage` shows the prepaid balance; a `402 INSUFFICIENT_FUNDS` from any
-tool means it needs topping up (`request_topup` starts a machine payment
-where that is enabled, otherwise point the user at the billing page).
+tool means it needs topping up. The error names the billing page in
+`details.topUpUrl`: send the user there, then retry. Where machine payments are
+enabled the server also offers `request_topup`, and its instructions say so.
 
 If no r4m MCP server is connected but the user wants one, the endpoint is
 `https://r4m.ai/api/mcp` (Streamable HTTP). It needs no API key: the first
