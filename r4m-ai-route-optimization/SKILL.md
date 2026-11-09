@@ -107,6 +107,9 @@ Other parameters worth knowing:
 - `maxRoutes`: up to this many vehicles. Add `balanceBy: "stops"` to use all of them
   and share the stops evenly.
 - `maxStopsPerRoute`: at most this many stops per route, not counting the depot.
+- `maxRouteDurationSeconds`, `maxRouteDistanceMeters`: caps on one route, such
+  as a driver's shift. The plan sets the highest value accepted (Free: 8 hours,
+  700 miles).
 - `defaultServiceTimeSeconds`: time at every stop that does not set its own
   `serviceTimeSeconds`.
 
