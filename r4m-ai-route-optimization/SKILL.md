@@ -55,8 +55,8 @@ minute, and you never handle their password:
    The answer has `device_code`, `user_code`, `verification_uri_complete`,
    `interval` and `expires_in` (15 minutes).
 2. Show the user `verification_uri_complete` and `user_code`. They open the
-   link, sign in with Google (this creates the account; a new account starts
-   with a $1.00 balance), check that the code matches, and click **Allow**.
+   link, sign in with Google (this creates the account, with a starting
+   balance), check that the code matches, and click **Allow**.
    The approval is theirs: never click it for them, even if you can drive a
    browser.
 3. Every `interval` seconds, redeem the code:
@@ -108,10 +108,18 @@ Other parameters worth knowing:
   and share the stops evenly.
 - `maxStopsPerRoute`: at most this many stops per route, not counting the depot.
 - `maxRouteDurationSeconds`, `maxRouteDistanceMeters`: caps on one route, such
-  as a driver's shift. The plan sets the highest value accepted (Free: 8 hours,
-  700 miles).
+  as a driver's shift.
 - `defaultServiceTimeSeconds`: time at every stop that does not set its own
   `serviceTimeSeconds`.
+
+Limits differ per account, so never assume them from a plan name. Read them
+from `GET /api/v1/account` (`r4m.getAccount()` in the SDK): `data.plan` holds
+the addresses allowed per request, optimizations running at once, API keys,
+and in `parameters` the highest value accepted for `maxRoutes`,
+`maxRouteDurationSeconds` and `maxRouteDistanceMeters` (`"unavailable"` when
+the plan does not offer it). A request over a limit is refused with
+`ADDRESS_LIMIT_EXCEEDED` or `PLAN_LIMIT_EXCEEDED`, and the message states the
+limit: pass it on to the user rather than splitting or trimming their stops.
 
 ## When the optimizer refuses with `GEOCODING_UNRESOLVED` (422)
 
@@ -293,8 +301,8 @@ text, and report the ordered list plus total distance/duration.
   request — tell the user to top up at https://r4m.ai/billing.
 - A `429` means "busy", and both kinds are handled the same way: wait for
   the seconds in the `Retry-After` header, then retry. `RATE_LIMITED` is the
-  per-minute safety limit; `CONCURRENCY_LIMIT_EXCEEDED` means the plan's
-  optimizations-in-flight allowance (Free 1, Pro 2) is used up, and
+  per-minute safety limit; `CONCURRENCY_LIMIT_EXCEEDED` means the account's
+  optimizations-in-flight allowance is used up, and
   `error.details.activeOptimizationIds` names the ones still running — poll
   one of them until it finishes, then retry. The SDK helpers
   (`submitOptimization`, `createOptimizationAndWaitForRoutes`) do this for
