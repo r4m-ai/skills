@@ -119,7 +119,7 @@ and in `parameters` the highest value accepted for `maxRoutes`,
 `maxRouteDurationSeconds` and `maxRouteDistanceMeters` (`"unavailable"` when
 the plan does not offer it). A request over a limit is refused with
 `ADDRESS_LIMIT_EXCEEDED` or `PLAN_LIMIT_EXCEEDED`, and the message states the
-limit: pass it on to the user rather than splitting or trimming their stops.
+limit: pass it on to the user; never drop or split their stops silently.
 
 ## When the optimizer refuses with `GEOCODING_UNRESOLVED` (422)
 
