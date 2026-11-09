@@ -99,6 +99,17 @@ To pick the start/end point, set `isDepot: true` on one address (position in the
 array does not matter), and `roundTrip: true` in the parameters if the driver
 must return to the depot.
 
+Other parameters worth knowing:
+
+- `keepOrder: true`: drive the stops as sent, depot first, for the distances and
+  times of an order the user already chose. Refused together with `optimizeMode`,
+  fleet constraints, delivery windows and priorities.
+- `maxRoutes`: up to this many vehicles. Add `balanceBy: "stops"` to use all of them
+  and share the stops evenly.
+- `maxStopsPerRoute`: at most this many stops per route, not counting the depot.
+- `defaultServiceTimeSeconds`: time at every stop that does not set its own
+  `serviceTimeSeconds`.
+
 ## When the optimizer refuses with `GEOCODING_UNRESOLVED` (422)
 
 Every geocoded stop must land on exactly one precise place; the request is
