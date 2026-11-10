@@ -65,7 +65,8 @@ minute, and you never handle their password:
 3. Every `interval` seconds, redeem the code. A `200` holds the key in
    `api_key`, once only; redeem it so that the key goes straight into the
    project's `.env` (check that `.env` is git-ignored) and only the outcome is
-   printed:
+   printed. The snippet needs `jq`; if `.env` already has an `R4M_API_KEY`
+   line, ask the user before replacing it.
 
    ```bash
    resp=$(curl -s -X POST https://r4m.ai/api/auth/device/key \
@@ -73,6 +74,8 @@ minute, and you never handle their password:
      -d '{"client_id":"r4m-agent","device_code":"..."}')
    key=$(printf '%s' "$resp" | jq -r '.api_key // empty')
    if [ -n "$key" ]; then
+     # A file without a final newline would glue the key onto its last line.
+     [ -s .env ] && [ -n "$(tail -c1 .env)" ] && echo >> .env
      printf 'R4M_API_KEY=%s\n' "$key" >> .env && echo "key saved to .env"
    else
      printf '%s\n' "$resp" | jq -c '{error, error_description}'
