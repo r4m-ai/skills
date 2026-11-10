@@ -37,9 +37,12 @@ Three ways to call it, in order of preference:
 
 ## Prerequisites
 
-The user must have an r4m.ai API key (`acc_...`). If it is not already available
-in the environment, ask for it and read it from `R4M_API_KEY`. Never hardcode or
-log the key.
+The user must have an r4m.ai API key (`acc_...`), read from `R4M_API_KEY`.
+Secrets never go through the conversation: whatever is said or printed there
+stays in the transcript. So never ask the user to paste a key into the chat,
+and never print, echo or log one. If `R4M_API_KEY` is not set, get a key with
+the device flow below, or ask the user to create one and put it into the
+environment themselves.
 
 If the user has no key yet, get one with the device flow. It takes them a
 minute, and you never handle their password:
@@ -59,16 +62,24 @@ minute, and you never handle their password:
    balance), check that the code matches, and click **Allow**.
    The approval is theirs: never click it for them, even if you can drive a
    browser.
-3. Every `interval` seconds, redeem the code:
+3. Every `interval` seconds, redeem the code. A `200` holds the key in
+   `api_key`, once only; redeem it so that the key goes straight into the
+   project's `.env` (check that `.env` is git-ignored) and only the outcome is
+   printed:
 
    ```bash
-   curl -X POST https://r4m.ai/api/auth/device/key \
+   resp=$(curl -s -X POST https://r4m.ai/api/auth/device/key \
      -H 'Content-Type: application/json' \
-     -d '{"client_id":"r4m-agent","device_code":"..."}'
+     -d '{"client_id":"r4m-agent","device_code":"..."}')
+   key=$(printf '%s' "$resp" | jq -r '.api_key // empty')
+   if [ -n "$key" ]; then
+     printf 'R4M_API_KEY=%s\n' "$key" >> .env && echo "key saved to .env"
+   else
+     printf '%s\n' "$resp" | jq -c '{error, error_description}'
+   fi
    ```
 
-   A `200` holds the key in `api_key`, once only: put it in `R4M_API_KEY` without
-   printing it. Otherwise `error` says what to do:
+   Otherwise `error` says what to do:
    - `authorization_pending`: keep polling.
    - `slow_down`: wait 5 seconds longer between polls.
    - `key_limit_reached`: the plan's keys are all in use. Pass on
@@ -76,8 +87,8 @@ minute, and you never handle their password:
      https://r4m.ai/api-keys, keep polling.
    - `access_denied` or `expired_token`: stop. Start again only if the user asks.
 
-The user can also create a key themselves at https://r4m.ai/api-keys and give
-it to you as `R4M_API_KEY`.
+The user can also create a key themselves at https://r4m.ai/api-keys and set
+`R4M_API_KEY` (or add it to `.env`) themselves.
 
 Base URL: `https://r4m.ai`. `R4M_BASE_URL` overrides it only for r4m.ai's
 own staging deployments; never point it anywhere else, the API key goes with
@@ -113,7 +124,8 @@ Other parameters worth knowing:
   `serviceTimeSeconds`.
 
 Limits differ per account, so never assume them from a plan name. Read them
-from `GET /api/v1/account` (`r4m.getAccount()` in the SDK): `data.plan` holds
+from `GET /api/v1/account` (`r4m.getAccount()` in the SDK, `get_account` over
+MCP): `data.plan` holds
 the addresses allowed per request, optimizations running at once, API keys,
 and in `parameters` the highest value accepted for `maxRoutes`,
 `maxRouteDurationSeconds` and `maxRouteDistanceMeters` (`"unavailable"` when
@@ -150,10 +162,9 @@ Tell the user which stops were fixed how.
 
 If the session has an r4m MCP server (tools named `create_optimization`,
 `get_optimization`, `bulk_geocode`, `forward_geocode`, `list_optimizations`,
-`check_usage`, `list_keys`, `create_key`), call those
-directly instead of writing code — every tool is an exact twin of the REST
-endpoint of the same name, takes the same fields and returns the same
-`data` payload:
+`delete_optimization`, `check_usage`, `get_account`, `list_keys`), call those
+directly instead of writing code — every tool is an exact twin of a REST
+endpoint, takes the same fields and returns the same `data` payload:
 
 1. `bulk_geocode` with `{ "addresses": [...strings] }` → one result per
    distinct address, matched by `original` (never by position). Use the ones
@@ -174,6 +185,11 @@ endpoint of the same name, takes the same fields and returns the same
 tool means it needs topping up. The error names the billing page in
 `details.topUpUrl`: send the user there, then retry. Where machine payments are
 enabled the server also offers `request_topup`, and its instructions say so.
+
+No tool hands out a secret: API keys are created and revoked at
+https://r4m.ai/api-keys and the webhook secret is at https://r4m.ai/settings.
+When the user's code needs one, send them there to put it into the app's
+environment themselves; `list_keys` shows which keys exist.
 
 If no r4m MCP server is connected but the user wants one, the endpoint is
 `https://r4m.ai/api/mcp` (Streamable HTTP). It needs no API key: the first
@@ -313,7 +329,9 @@ text, and report the ordered list plus total distance/duration.
   (`ngrok http <port>`) and pass the https URL ngrok prints.
 - Every webhook is signed: `X-Webhook-Signature` is the hex HMAC-SHA256 of
   the raw request body under the account's webhook secret, which
-  `GET /api/v1/webhook-secret` returns (keep it in `R4M_WEBHOOK_SECRET`). In
+  `GET /api/v1/webhook-secret` returns: write it straight into
+  `R4M_WEBHOOK_SECRET` in `.env` without printing it, or have the user copy
+  it from https://r4m.ai/settings. In
   TypeScript, `verifyWebhook(request, secret)` from `@r4mai/sdk` checks it and
   returns the typed event; elsewhere compare in constant time. Reject an
   unsigned or mismatched request.
