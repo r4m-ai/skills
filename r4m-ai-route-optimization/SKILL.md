@@ -165,7 +165,8 @@ Tell the user which stops were fixed how.
 
 If the session has an r4m MCP server (tools named `create_optimization`,
 `get_optimization`, `bulk_geocode`, `forward_geocode`, `list_optimizations`,
-`delete_optimization`, `check_usage`, `get_account`, `list_keys`), call those
+`cancel_optimization`, `delete_optimization`, `check_usage`, `get_account`,
+`list_keys`), call those
 directly instead of writing code — every tool is an exact twin of a REST
 endpoint, takes the same fields and returns the same `data` payload:
 
@@ -181,8 +182,14 @@ endpoint, takes the same fields and returns the same `data` payload:
    `GEOCODING_UNRESOLVED` follow the section above: resend `resolved` stops
    with their coordinates, fix only the `unresolved` ones.
 3. `get_optimization` with `{ "id" }` after 2 seconds, then 4, then every 5,
-   until `status` is `completed` or `failed` (typically 2–60s). Then present
-   `result.routes` as described under "Present the result" below.
+   until `status` is `completed`, `failed` or `cancelled` (typically 2–60s).
+   Then present `result.routes` as described under "Present the result"
+   below. Retrying `create_optimization` with the same request is safe: while
+   the first is in flight, or for a day after it completed, it returns that
+   one (`replayed: true`) and charges nothing; the same stops in another order
+   get an optimization of their own from it, indexed in the order sent. `cancel_optimization` stops a
+   running one and frees its slot, but is not refunded and that optimization
+   never delivers a result: only when the user asks.
 
 `check_usage` shows the prepaid balance; a `402 INSUFFICIENT_FUNDS` from any
 tool means it needs topping up. The error names the billing page in
